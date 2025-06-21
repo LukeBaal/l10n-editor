@@ -15,30 +15,75 @@ import (
 	"github.com/magiconair/properties"
 )
 
+type AppConfig struct {
+	PropsDir          string             `json:"propsDir"`
+	BaseFilename      string             `json:"baseFilename"`
+	LengthMultipliers map[string]float64 `json:"lengthMultipliers"`
+}
+
 var (
-	propsDir      = "resources"
+	config        AppConfig
 	propsMap      map[string]*properties.Properties
-	baseFilename  = "messages"
 	defaultLang   = "en"
 	langFileRegex *regexp.Regexp
 
-	// Configure length multipliers for each language.
-	// This acts as an "enum" to specify percentage length differences.
-	// For example, 1.2 means the target length is 120% of the English string length.
-	lengthMultipliers = map[string]float64{
-		"fr": 1.2,
-		"nl": 1.3,
-		"fi": 0.9,
-		"es": 1.25,
-		"pt": 1.25,
-	}
 	// Default multiplier for any language not specified in the map above.
 	defaultMultiplier = 1.1
 )
 
+func loadConfig() {
+	configFilename := "config.json"
+
+	// Set default configuration
+	defaultConfig := AppConfig{
+		PropsDir:     "resources",
+		BaseFilename: "messages",
+		LengthMultipliers: map[string]float64{
+			"fr": 1.2,
+			"nl": 1.2,
+			"fi": 1.1,
+			"es": 1.25,
+			"pt": 1.2,
+		},
+	}
+
+	// Check if the config file exists.
+	if _, err := os.Stat(configFilename); os.IsNotExist(err) {
+		log.Printf("Config file not found. Creating default '%s'.", configFilename)
+		file, err := os.Create(configFilename)
+		if err != nil {
+			log.Fatalf("Failed to create config file: %v", err)
+		}
+		defer file.Close()
+
+		encoder := json.NewEncoder(file)
+		encoder.SetIndent("", "  ") // Make the JSON pretty
+		if err := encoder.Encode(defaultConfig); err != nil {
+			log.Fatalf("Failed to write default config: %v", err)
+		}
+		// Use the default config for this run
+		config = defaultConfig
+		return
+	}
+
+	// If it exists, load it.
+	file, err := os.Open(configFilename)
+	if err != nil {
+		log.Fatalf("Failed to open config file: %v", err)
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&config); err != nil {
+		log.Fatalf("Failed to parse config file '%s': %v", configFilename, err)
+	}
+	log.Printf("Loaded configuration from '%s'.", configFilename)
+}
+
 func main() {
 	// Regex to find language code in filename, e.g., messages_fr.properties -> fr
-	langFileRegex = regexp.MustCompile(fmt.Sprintf(`^%s_(\w+)\.properties$`, baseFilename))
+	loadConfig()
+	langFileRegex = regexp.MustCompile(fmt.Sprintf(`^%s_(\w+)\.properties$`, config.BaseFilename))
 
 	loadAllProperties()
 
@@ -56,7 +101,7 @@ func main() {
 func loadAllProperties() {
 
 	propsMap = make(map[string]*properties.Properties)
-	searchPath := filepath.Join(propsDir, baseFilename+"*.properties")
+	searchPath := filepath.Join(config.PropsDir, config.BaseFilename+"*.properties")
 	files, err := filepath.Glob(searchPath)
 	if err != nil {
 		log.Fatalf("Error finding properties files: %v", err)
@@ -166,7 +211,7 @@ func addString(w http.ResponseWriter, r *http.Request) {
 		if lang == defaultLang {
 			props.Set(key, value)
 		} else {
-			multiplier, ok := lengthMultipliers[lang]
+			multiplier, ok := config.LengthMultipliers[lang]
 			if !ok {
 				multiplier = defaultMultiplier
 			}
@@ -244,12 +289,12 @@ func saveAllProperties() {
 }
 
 func saveProperties(lang string, props *properties.Properties) {
-	filename := fmt.Sprintf("%s_%s.properties", baseFilename, lang)
+	filename := fmt.Sprintf("%s_%s.properties", config.BaseFilename, lang)
 	if lang == defaultLang {
 		// For backward compatibility or preference, save 'en' as the default filename
-		filename = fmt.Sprintf("%s.properties", baseFilename)
-		if _, err := os.Stat(fmt.Sprintf("%s_%s.properties", baseFilename, lang)); !os.IsNotExist(err) {
-			filename = fmt.Sprintf("%s_%s.properties", baseFilename, lang)
+		filename = fmt.Sprintf("%s.properties", config.BaseFilename)
+		if _, err := os.Stat(fmt.Sprintf("%s_%s.properties", config.BaseFilename, lang)); !os.IsNotExist(err) {
+			filename = fmt.Sprintf("%s_%s.properties", config.BaseFilename, lang)
 		}
 	}
 
