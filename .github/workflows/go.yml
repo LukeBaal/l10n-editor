@@ -37,7 +37,7 @@ jobs:
         run: |
           # The main.go file is assumed to be at the root. If it's elsewhere, adjust the path.
           # For example, if it's in a 'cmd/server' directory, use './cmd/server'.
-          gox -osarch="windows" -output="build/{{.Dir}}-{{.OS}}-{{.Arch}}" .
+          gox -osarch="windows/386" -output="build/{{.Dir}}-{{.OS}}-{{.Arch}}" .
 
       # Step 5: Create the GitHub Release.
       # This uses the tag name for the release and automatically generates release notes.
