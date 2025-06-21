@@ -218,6 +218,13 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        .search-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
     </style>
 </head>
 
@@ -235,7 +242,11 @@
             </div>
         </div>
 
-        <input type="text" id="search" onkeyup="filterStrings()" placeholder="Search for keys or values...">
+        <div class="search-container">
+            <input type="text" id="search" onkeyup="filterStrings()" placeholder="Search for keys or values...">
+            <label for="showTranslations">Show Translations</label>
+            <input type="checkbox" id="showTranslations" />
+        </div>
         <div class="table-container">
             <table id="strings-table">
                 <thead id="strings-head"></thead>
@@ -246,17 +257,32 @@
 
     <script>
         let languages = [];
+        let strings = null;
+        let showTranslations = true;
 
         window.onload = function () {
             fetchStrings();
         };
+
+        const showTranslationsCheckbox = document.getElementById("showTranslations");
+        showTranslationsCheckbox.addEventListener("change", (e) => {
+            showTranslations = e.target.checked;
+            renderTable(languages, strings)
+
+            fetch(`/api/showTranslations?show=${showTranslations}`, {
+                method: "PUT"
+            });
+        });
 
         function fetchStrings() {
             fetch('/api/strings')
                 .then(response => response.json())
                 .then(data => {
                     languages = data.langs;
-                    const strings = data.strings;
+                    strings = data.strings;
+                    showTranslations = data.showTranslations;
+
+                    showTranslationsCheckbox.checked = showTranslations;
 
                     renderTable(languages, strings);
                 });
@@ -278,10 +304,16 @@
                 let rowHTML = `<tr><td>${key}</td>`;
                 const values = strings[key];
 
+                const displayNames = new Intl.DisplayNames(["en"], {type: "language"});
                 langs.forEach(lang => {
+                    if (!showTranslations && lang !== "en") {
+                        return;
+                    }
+                    const displayName = displayNames.of(lang);
                     const value = values[lang] || '';
                     const editable = lang == "en";
                     rowHTML += `<td class="value-cell">
+${showTranslations ? `<label for="value-${key}-${lang}"/>${displayName}</label>` : ""}
 <input type="text" id="value-${key}-${lang}" value="${escapeHTML(value)}" title="${escapeHTML(value)}" ${editable ? "" : "disabled"}>
                                     <button class="save" onclick="editString('${key}', '${lang}')">Save</button>
                                 </td>`;

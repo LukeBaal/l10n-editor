@@ -19,20 +19,21 @@ type AppConfig struct {
 	PropsDir          string             `json:"propsDir"`
 	BaseFilename      string             `json:"baseFilename"`
 	LengthMultipliers map[string]float64 `json:"lengthMultipliers"`
+	ShowTranslations  bool               `json:"showTranslations"`
 }
 
 var (
-	config        AppConfig
-	propsMap      map[string]*properties.Properties
-	defaultLang   = "en"
-	langFileRegex *regexp.Regexp
+	config         AppConfig
+	propsMap       map[string]*properties.Properties
+	defaultLang    = "en"
+	langFileRegex  *regexp.Regexp
+	configFilename = "config.json"
 
 	// Default multiplier for any language not specified in the map above.
 	defaultMultiplier = 1.1
 )
 
 func loadConfig() {
-	configFilename := "config.json"
 
 	// Set default configuration
 	defaultConfig := AppConfig{
@@ -45,23 +46,14 @@ func loadConfig() {
 			"es": 1.25,
 			"pt": 1.2,
 		},
+		ShowTranslations: true,
 	}
 
 	// Check if the config file exists.
 	if _, err := os.Stat(configFilename); os.IsNotExist(err) {
 		log.Printf("Config file not found. Creating default '%s'.", configFilename)
-		file, err := os.Create(configFilename)
-		if err != nil {
-			log.Fatalf("Failed to create config file: %v", err)
-		}
-		defer file.Close()
-
-		encoder := json.NewEncoder(file)
-		encoder.SetIndent("", "  ") // Make the JSON pretty
-		if err := encoder.Encode(defaultConfig); err != nil {
-			log.Fatalf("Failed to write default config: %v", err)
-		}
 		// Use the default config for this run
+		saveConfig(defaultConfig)
 		config = defaultConfig
 		return
 	}
@@ -80,6 +72,20 @@ func loadConfig() {
 	log.Printf("Loaded configuration from '%s'.", configFilename)
 }
 
+func saveConfig(config AppConfig) {
+	file, err := os.Create(configFilename)
+	if err != nil {
+		log.Fatalf("Failed to create config file: %v", err)
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ") // Make the JSON pretty
+	if err := encoder.Encode(config); err != nil {
+		log.Fatalf("Failed to write default config: %v", err)
+	}
+}
+
 func main() {
 	// Regex to find language code in filename, e.g., messages_fr.properties -> fr
 	loadConfig()
@@ -92,6 +98,7 @@ func main() {
 	http.HandleFunc("/api/add", addString)
 	http.HandleFunc("/api/edit", editString)
 	http.HandleFunc("/api/remove", removeString)
+	http.HandleFunc("/api/showTranslations", setShowTranslations)
 
 	fmt.Println("Server starting on :8080")
 	fmt.Printf("Loaded languages: %v\n", getSortedLangs())
@@ -167,11 +174,13 @@ func getStrings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := struct {
-		Langs   []string                     `json:"langs"`
-		Strings map[string]map[string]string `json:"strings"`
+		Langs            []string                     `json:"langs"`
+		Strings          map[string]map[string]string `json:"strings"`
+		ShowTranslations bool                         `json:"showTranslations"`
 	}{
-		Langs:   langs,
-		Strings: data,
+		Langs:            langs,
+		Strings:          data,
+		ShowTranslations: config.ShowTranslations,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -280,6 +289,18 @@ func removeString(w http.ResponseWriter, r *http.Request) {
 
 	saveAllProperties()
 	w.WriteHeader(http.StatusOK)
+}
+
+func setShowTranslations(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	show := r.FormValue("show")
+	config.ShowTranslations = show == "true"
+
+	saveConfig(config)
 }
 
 func saveAllProperties() {
