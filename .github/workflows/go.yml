@@ -1,25 +1,54 @@
-# This workflow will build a golang project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+# .github/workflows/release.yml
 
-name: Go
+name: Build and Release
 
+# This workflow runs when a new tag is pushed that matches the 'v*.*.*' pattern.
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    tags:
+      - 'v*.*.*'
+
+# Sets permissions for the GITHUB_TOKEN to allow creating releases.
+permissions:
+  contents: write
 
 jobs:
-
-  build:
+  build-and-release:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      # Step 1: Check out the repository's code.
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.20'
+      # Step 2: Set up the Go environment.
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22' # Use a recent, stable version of Go
 
-    - name: Build
-      run: go build -v ./...
+      # Step 3: Install gox for cross-compilation.
+      - name: Install gox
+        run: go install github.com/mitchellh/gox@latest
+
+      # Step 4: Run the build process.
+      # This will compile the binaries and place them in a 'build' directory.
+      # The -osarch flag specifies the target operating systems and architectures.
+      - name: Build application
+        run: |
+          # The main.go file is assumed to be at the root. If it's elsewhere, adjust the path.
+          # For example, if it's in a 'cmd/server' directory, use './cmd/server'.
+          gox -osarch="windows/x64" -output="build/{{.Dir}}-{{.OS}}-{{.Arch}}" .
+
+      # Step 5: Create the GitHub Release.
+      # This uses the tag name for the release and automatically generates release notes.
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # This will create a draft release, allowing you to manually publish it.
+          # Set to false to publish automatically.
+          draft: false
+          # This will automatically generate release notes from your commit messages.
+          generate_release_notes: true
+          # Upload all files from the 'build' directory as release assets.
+          files: |
+            build/*
