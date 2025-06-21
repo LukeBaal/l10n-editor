@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Localization String Editor</title>
+    <style>
+        :root {
+            /* Light Theme (Default) */
+            --color-text: #212529;
+            --color-text-muted: #6c757d;
+            --color-background: #f8f9fa;
+            --color-surface: #ffffff;
+            --color-border: #dee2e6;
+            --color-table-header: #f2f2f2;
+            --color-table-row-alt: #f8f9fa;
+            --color-table-row-hover: #e9ecef;
+            --color-input-bg: #ffffff;
+            --color-input-border: #ced4da;
+            --color-input-focus-shadow: rgba(0, 123, 255, 0.25);
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --border-radius: 0.3rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                /* Dark Theme Overrides */
+                --color-text: #e9ecef;
+                --color-text-muted: #adb5bd;
+                --color-background: #121212;
+                --color-surface: #1e1e1e;
+                --color-border: #3a3a3a;
+                --color-table-header: #2c2c2c;
+                --color-table-row-alt: #212121;
+                --color-table-row-hover: #333333;
+                --color-input-bg: #2c2c2c;
+                --color-input-border: #495057;
+                --color-input-focus-shadow: rgba(0, 123, 255, 0.35);
+                --box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            }
+        }
+
+        html {
+            color-scheme: light dark;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--color-background);
+            color: var(--color-text);
+            margin: 0;
+            padding: 2em;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 2em;
+            background: var(--color-surface);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            border: 1px solid var(--color-border);
+        }
+
+        h1,
+        h2 {
+            color: var(--color-text);
+            border-bottom: 2px solid var(--color-border);
+            padding-bottom: 0.5em;
+            margin-bottom: 1em;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 1.5em;
+        }
+
+        #search {
+            width: 100%;
+            padding: 0.75em;
+            margin: 2em 0;
+            background-color: var(--color-input-bg);
+            color: var(--color-text);
+            border: 1px solid var(--color-input-border);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        #search:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--color-input-focus-shadow);
+        }
+
+        .table-container {
+            max-height: 800px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2em;
+        }
+
+        th,
+        td {
+            padding: 1em;
+            text-align: left;
+            border-bottom: 1px solid var(--color-border);
+            white-space: nowrap;
+        }
+
+        td:first-child {
+            font-weight: bold;
+            white-space: normal;
+        }
+
+        thead th {
+            background-color: var(--color-table-header);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: var(--color-table-row-alt);
+        }
+
+        tbody tr:hover {
+            background-color: var(--color-table-row-hover);
+        }
+
+        .value-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .value-cell input[type="text"],
+        #add-form input {
+            width: 100%;
+            padding: 0.6em;
+            background-color: var(--color-input-bg);
+            color: var(--color-text);
+            border: 1px solid var(--color-input-border);
+            border-radius: var(--border-radius);
+            box-sizing: border-box;
+            min-width: 200px;
+        }
+
+        .actions button,
+        .value-cell button {
+            padding: 0.5em 1em;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: opacity 0.2s;
+            color: white;
+            white-space: nowrap;
+        }
+
+        .actions button:hover,
+        .value-cell button:hover {
+            opacity: 0.8;
+        }
+
+        button.save {
+            background-color: var(--primary-color);
+        }
+
+        button.remove {
+            background-color: var(--danger-color);
+        }
+
+        #add-form-container {
+            background-color: var(--color-surface);
+            padding: 2em;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            border: 1px solid var(--color-border);
+        }
+
+        #add-form {
+            display: grid;
+            grid-template-columns: 1fr 2fr auto;
+            gap: 1em;
+            align-items: center;
+        }
+
+        #add-form button {
+            padding: 0.75em 1.5em;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            background-color: var(--success-color);
+            color: white;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+        }
+
+        #add-form button:hover {
+            background-color: #218838;
+        }
+
+        @media (max-width: 992px) {
+            #add-form {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Localization String Editor</h1>
+
+        <div id="add-form-container">
+            <h2>Add New String</h2>
+            <div id="add-form">
+                <input type="text" id="new-key" placeholder="Key (e.g., AppTitle)">
+                <input type="text" id="new-value" placeholder="English (en) Value">
+                <button onclick="addString()">Add String</button>
+            </div>
+        </div>
+
+        <input type="text" id="search" onkeyup="filterStrings()" placeholder="Search for keys or values...">
+        <div class="table-container">
+            <table id="strings-table">
+                <thead id="strings-head"></thead>
+                <tbody id="strings-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let languages = [];
+
+        window.onload = function () {
+            fetchStrings();
+        };
+
+        function fetchStrings() {
+            fetch('/api/strings')
+                .then(response => response.json())
+                .then(data => {
+                    languages = data.langs;
+                    const strings = data.strings;
+
+                    renderTable(languages, strings);
+                });
+        }
+
+        function renderTable(langs, strings) {
+            const thead = document.getElementById('strings-head');
+            const tbody = document.getElementById('strings-body');
+
+            // Build Header
+            let headerHTML = '<tr><th>Key</th>';
+            headerHTML += `<th>Values</th>`;
+            headerHTML += '<th>Actions</th></tr>';
+            thead.innerHTML = headerHTML;
+
+            // Build Body
+            tbody.innerHTML = '';
+            for (const key in strings) {
+                let rowHTML = `<tr><td>${key}</td>`;
+                const values = strings[key];
+
+                langs.forEach(lang => {
+                    const value = values[lang] || '';
+                    const editable = lang == "en";
+                    rowHTML += `<td class="value-cell">
+<input type="text" id="value-${key}-${lang}" value="${escapeHTML(value)}" title="${escapeHTML(value)}" ${editable ? "" : "disabled"}>
+                                    <button class="save" onclick="editString('${key}', '${lang}')">Save</button>
+                                </td>`;
+                });
+
+                rowHTML += `<td class="actions"><button class="remove" onclick="removeString('${key}')">Remove Key</button></td>`;
+                rowHTML += '</tr>';
+                tbody.innerHTML += rowHTML;
+            }
+        }
+
+        function filterStrings() {
+            const filter = document.getElementById('search').value.toLowerCase();
+            const table = document.getElementById('strings-table');
+            const tr = table.getElementsByTagName('tr');
+
+            for (let i = 1; i < tr.length; i++) {
+                tr[i].style.display = "none"; // Hide by default
+                const cells = tr[i].getElementsByTagName('td');
+                let found = false;
+                // Search key cell (index 0) and all value inputs
+                if (cells[0].textContent.toLowerCase().indexOf(filter) > -1) {
+                    found = true;
+                } else {
+                    for (let j = 1; j < cells.length - 1; j++) { // minus 1 for action cell
+                        const input = cells[j].getElementsByTagName('input')[0];
+                        if (input && input.value.toLowerCase().indexOf(filter) > -1) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if (found) {
+                    tr[i].style.display = "";
+                }
+            }
+        }
+
+        function addString() {
+            const key = document.getElementById('new-key').value;
+            const value = document.getElementById('new-value').value;
+            if (!value) {
+                alert('English Value cannot be empty.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('key', key);
+            formData.append('value', value);
+
+            fetch('/api/add', {method: 'POST', body: formData})
+                .then(response => {
+                    if (response.ok) {
+                        fetchStrings();
+                        document.getElementById('new-key').value = '';
+                        document.getElementById('new-value').value = '';
+                    } else {
+                        response.text().then(text => alert('Error adding string: ' + text));
+                    }
+                });
+        }
+
+        function editString(key, lang) {
+            const value = document.getElementById(`value-${key}-${lang}`).value;
+            const formData = new FormData();
+            formData.append('key', key);
+            formData.append('lang', lang);
+            formData.append('value', value);
+
+            fetch('/api/edit', {method: 'POST', body: formData})
+                .then(response => {
+                    if (response.ok) {
+                        alert(`'${key}' in '${lang}' saved!`);
+                    } else {
+                        alert('Error saving string.');
+                    }
+                });
+        }
+
+        function removeString(key) {
+            if (confirm(`Are you sure you want to remove the key '${key}' from all language files?`)) {
+                const formData = new FormData();
+                formData.append('key', key);
+
+                fetch('/api/remove', {method: 'POST', body: formData})
+                    .then(response => {
+                        if (response.ok) {
+                            fetchStrings();
+                        } else {
+                            alert('Error removing string.');
+                        }
+                    });
+            }
+        }
+
+        function escapeHTML(str) {
+            const p = document.createElement('p');
+            p.textContent = str;
+            return p.innerHTML;
+        }
+    </script>
+
+</body>
+
+</html>
