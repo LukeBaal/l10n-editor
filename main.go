@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,6 +15,9 @@ import (
 
 	"github.com/magiconair/properties"
 )
+
+//go:embed index.html
+var indexHTML []byte
 
 type AppConfig struct {
 	PropsDir          string             `json:"propsDir"`
@@ -143,7 +147,8 @@ func loadAllProperties() {
 }
 
 func serveUI(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "index.html")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(indexHTML)
 }
 
 func getStrings(w http.ResponseWriter, r *http.Request) {
