@@ -1,0 +1,45 @@
+# .air.toml
+# Main configuration for the Air hot-reloading tool.
+
+# The root directory of your project. "." means the current directory.
+root = "."
+# A temporary directory for Air to store the built binary.
+tmp_dir = "tmp"
+
+[build]
+  # Command to build your application.
+  # It builds the Go files in the current directory and places the output in tmp/main
+  cmd = "go build -o ./tmp/main.exe ."
+  # The path to the binary that Air should run after building.
+  bin = "tmp/main.exe"
+  
+  # Files and extensions to watch that will trigger a rebuild.
+  # VERY IMPORTANT: We must include "html" because index.html is embedded in the binary.
+  # We also include "json" to reload when config.json changes.
+  include_ext = ["go", "tpl", "tmpl", "html", "json"]
+  
+  # Directories to exclude from watching.
+  # We exclude the 'resources' directory because the app writes to .properties files at runtime,
+  # and we don't want that to trigger a reload.
+  exclude_dir = ["tmp", "vendor", "resources"]
+  
+  # A command to run before the build. Useful for tasks like code generation. (Optional)
+  # pre_cmd = ["echo 'running pre_cmd...'"]
+  
+  # Log name for the build command's output.
+  log = "air_build.log"
+
+[log]
+  # Show the time in logs.
+  time = true
+
+[color]
+  # Customize colors for different parts of the output for better readability.
+  main = "magenta"
+  watcher = "cyan"
+  build = "yellow"
+  runner = "green"
+
+[misc]
+  # Delete the temporary directory on exit.
+  clean_on_exit = true

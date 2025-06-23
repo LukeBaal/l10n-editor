@@ -1,9 +1,10 @@
 package main
 
 import (
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log"
 	"math"
 	"net/http"
@@ -16,8 +17,8 @@ import (
 	"github.com/magiconair/properties"
 )
 
-//go:embed index.html
-var indexHTML []byte
+//go:embed index.html assets/*
+var embeddedFS embed.FS
 
 type AppConfig struct {
 	PropsDir          string             `json:"propsDir"`
@@ -97,12 +98,18 @@ func main() {
 
 	loadAllProperties()
 
+	assetsFS, err := fs.Sub(embeddedFS, "assets")
+	if err != nil {
+		log.Fatal("failed to create assets sub-filesystem: ", err)
+	}
+	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assetsFS))))
 	http.HandleFunc("/", serveUI)
 	http.HandleFunc("/api/strings", getStrings)
 	http.HandleFunc("/api/add", addString)
 	http.HandleFunc("/api/edit", editString)
 	http.HandleFunc("/api/remove", removeString)
 	http.HandleFunc("/api/showTranslations", setShowTranslations)
+
 
 	fmt.Println("Server starting on :8080")
 	fmt.Printf("Loaded languages: %v\n", getSortedLangs())
@@ -147,11 +154,25 @@ func loadAllProperties() {
 }
 
 func serveUI(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(indexHTML)
+    // Ensure we only handle requests for the root path and not other paths.
+    if r.URL.Path != "/" {
+        http.NotFound(w, r)
+        return
+    }
+    // Read index.html from our embedded filesystem.
+    indexBytes, err := embeddedFS.ReadFile("index.html")
+    if err != nil {
+        log.Printf("could not read embedded index.html: %v", err)
+        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+        return
+    }
+    w.Header().Set("Content-Type", "text/html; charset=utf-8")
+    w.Write(indexBytes)
 }
 
 func getStrings(w http.ResponseWriter, r *http.Request) {
+    query := r.FormValue("query")
+    hasQuery := query != ""
 	allKeys := make(map[string]struct{})
 	for _, props := range propsMap {
 		for _, key := range props.Keys() {
@@ -161,6 +182,14 @@ func getStrings(w http.ResponseWriter, r *http.Request) {
 
 	sortedKeys := make([]string, 0, len(allKeys))
 	for key := range allKeys {
+        if hasQuery {
+            if props, ok := propsMap["en"]; ok {
+                val, _ := props.Get(key)
+                if strings.Index(strings.ToLower(val), query) < 0 {
+                    continue
+                }
+            }
+        }
 		sortedKeys = append(sortedKeys, key)
 	}
 	sort.Strings(sortedKeys)
@@ -169,7 +198,10 @@ func getStrings(w http.ResponseWriter, r *http.Request) {
         sortedKeys = sortedKeys[:250]
     }
 
-	langs := getSortedLangs()
+	langs := []string {"en"}
+    if config.ShowTranslations {
+        langs = getSortedLangs()
+    }
 
 	data := make(map[string]map[string]string)
 	for _, key := range sortedKeys {
