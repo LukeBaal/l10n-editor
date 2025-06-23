@@ -165,6 +165,10 @@ func getStrings(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Strings(sortedKeys)
 
+    if len(sortedKeys) > 250 {
+        sortedKeys = sortedKeys[:250]
+    }
+
 	langs := getSortedLangs()
 
 	data := make(map[string]map[string]string)
