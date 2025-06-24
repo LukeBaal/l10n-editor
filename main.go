@@ -142,6 +142,11 @@ func loadAllProperties() {
 			lang = matches[1]
 		}
 
+        basepath := filepath.Base(file)
+        if strings.Index(basepath, "en") >= 0 {
+            continue
+        }
+
 		props, err := properties.LoadFile(file, properties.UTF8)
 		if err != nil {
 			log.Printf("Warning: Could not load file %s: %v. Skipping.", file, err)
@@ -175,21 +180,23 @@ func serveUI(w http.ResponseWriter, r *http.Request) {
 func getStrings(w http.ResponseWriter, r *http.Request) {
     query := r.FormValue("query")
     hasQuery := query != ""
+    if hasQuery {
+        query = strings.ToLower(query)
+    }
 	allKeys := make(map[string]struct{})
 	for _, props := range propsMap {
 		for _, key := range props.Keys() {
 			allKeys[key] = struct{}{}
 		}
 	}
-
 	sortedKeys := make([]string, 0, len(allKeys))
+    enProps, _ := propsMap["en"]
 	for key := range allKeys {
         if hasQuery {
-            if props, ok := propsMap["en"]; ok {
-                val, _ := props.Get(key)
-                if strings.Index(strings.ToLower(val), query) < 0 {
-                    continue
-                }
+            val, _ := enProps.Get(key)
+            index := strings.Index(strings.ToLower(val), query)
+            if index < 0 {
+                continue
             }
         }
 		sortedKeys = append(sortedKeys, key)
