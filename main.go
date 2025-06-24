@@ -33,6 +33,7 @@ var (
 	defaultLang    = "en"
 	langFileRegex  *regexp.Regexp
 	configFilename = "config.json"
+    usingDefaultConfig = false
 
 	// Default multiplier for any language not specified in the map above.
 	defaultMultiplier = 1.1
@@ -42,14 +43,14 @@ func loadConfig() {
 
 	// Set default configuration
 	defaultConfig := AppConfig{
-		PropsDir:     "resources",
-		BaseFilename: "messages",
+		PropsDir:     "src/resources",
+		BaseFilename: "Localization",
 		LengthMultipliers: map[string]float64{
-			"fr": 1.2,
-			"nl": 1.2,
-			"fi": 1.1,
-			"es": 1.25,
-			"pt": 1.2,
+			"fr": 1.25,
+			"nl": 1.17,
+			"fi": 1.2,
+			"es": 1.2,
+			"pt": 1.22,
 		},
 		ShowTranslations: true,
 	}
@@ -58,8 +59,9 @@ func loadConfig() {
 	if _, err := os.Stat(configFilename); os.IsNotExist(err) {
 		log.Printf("Config file not found. Creating default '%s'.", configFilename)
 		// Use the default config for this run
-		saveConfig(defaultConfig)
+		// saveConfig(defaultConfig)
 		config = defaultConfig
+        usingDefaultConfig = true
 		return
 	}
 
@@ -341,7 +343,9 @@ func setShowTranslations(w http.ResponseWriter, r *http.Request) {
 	show := r.FormValue("show")
 	config.ShowTranslations = show == "true"
 
-	saveConfig(config)
+    if !usingDefaultConfig {
+        saveConfig(config)
+    }
 }
 
 func saveAllProperties() {

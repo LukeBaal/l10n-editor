@@ -2,9 +2,9 @@ let languages = [];
 let strings = null;
 let showTranslations = true;
 
-window.onload = function () {
-    fetchStrings();
-};
+// window.onload = function () {
+//     fetchStrings();
+// };
 
 const showTranslationsCheckbox = document.getElementById("showTranslations");
 showTranslationsCheckbox.addEventListener("change", (e) => {
