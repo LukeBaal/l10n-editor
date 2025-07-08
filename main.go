@@ -177,6 +177,18 @@ func serveUI(w http.ResponseWriter, r *http.Request) {
     w.Write(indexBytes)
 }
 
+func matchesQuery(key, value, query string) bool {
+    keyIndex := strings.Index(strings.ToLower(key), query)
+    if keyIndex >= 0 {
+        return true
+    }
+    valueIndex := strings.Index(strings.ToLower(value), query)
+    if valueIndex >= 0 {
+        return true
+    }
+    return false
+}
+
 func getStrings(w http.ResponseWriter, r *http.Request) {
     query := r.FormValue("query")
     hasQuery := query != ""
@@ -194,8 +206,7 @@ func getStrings(w http.ResponseWriter, r *http.Request) {
 	for key := range allKeys {
         if hasQuery {
             val, _ := enProps.Get(key)
-            index := strings.Index(strings.ToLower(val), query)
-            if index < 0 {
+            if !matchesQuery(key, val, query) {
                 continue
             }
         }
@@ -267,36 +278,39 @@ func addString(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for lang, props := range propsMap {
-		if lang == defaultLang {
-			props.Set(key, value)
-		} else {
-			multiplier, ok := config.LengthMultipliers[lang]
-			if !ok {
-				multiplier = defaultMultiplier
-			}
-
-			targetLength := int(float64(len(value)) * multiplier)
-
-			baseContent := fmt.Sprintf("%s [%s]", value, lang)
-
-			paddingNeeded := targetLength - len(baseContent)
-			if paddingNeeded < 0 {
-				paddingNeeded = 0
-			}
-
-			startPaddingNeeded := math.Floor(float64(paddingNeeded) / 2)
-			endPaddingNeeded := math.Ceil(float64(paddingNeeded) / 2)
-
-			startPadding := strings.Repeat("!", int(startPaddingNeeded))
-			endPadding := strings.Repeat("!", int(endPaddingNeeded))
-			finalValue := startPadding + baseContent + endPadding
-
-			props.Set(key, finalValue)
-		}
+        finalValue := padString(lang, value)
+        props.Set(key, finalValue)
 	}
 
 	saveAllProperties()
 	w.WriteHeader(http.StatusCreated)
+}
+
+func padString(lang, value string) string {
+    if lang == defaultLang {
+        return value
+    }
+    multiplier, ok := config.LengthMultipliers[lang]
+    if !ok {
+        multiplier = defaultMultiplier
+    }
+
+    targetLength := int(float64(len(value)) * multiplier)
+
+    baseContent := fmt.Sprintf("%s [%s]", value, lang)
+
+    paddingNeeded := targetLength - len(baseContent)
+    if paddingNeeded < 0 {
+        paddingNeeded = 0
+    }
+
+    startPaddingNeeded := math.Floor(float64(paddingNeeded) / 2)
+    endPaddingNeeded := math.Ceil(float64(paddingNeeded) / 2)
+
+    startPadding := strings.Repeat("!", int(startPaddingNeeded))
+    endPadding := strings.Repeat("!", int(endPaddingNeeded))
+    finalValue := startPadding + baseContent + endPadding
+    return finalValue
 }
 
 func editString(w http.ResponseWriter, r *http.Request) {
@@ -314,8 +328,10 @@ func editString(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if props, ok := propsMap[lang]; ok {
-		props.Set(key, value)
-		saveProperties(lang, props)
+        paddedValue := padString(lang, value)
+		props.Set(key, paddedValue)
+        log.Printf("Updated %s = \"%s\"", key, paddedValue)
+		saveAllProperties()
 		w.WriteHeader(http.StatusOK)
 	} else {
 		http.Error(w, "Language not found", http.StatusBadRequest)
@@ -364,12 +380,9 @@ func saveAllProperties() {
 func saveProperties(lang string, props *properties.Properties) {
 	filename := fmt.Sprintf("%s_%s.properties", config.BaseFilename, lang)
 	if lang == defaultLang {
-		// For backward compatibility or preference, save 'en' as the default filename
 		filename = fmt.Sprintf("%s.properties", config.BaseFilename)
-		if _, err := os.Stat(fmt.Sprintf("%s_%s.properties", config.BaseFilename, lang)); !os.IsNotExist(err) {
-			filename = fmt.Sprintf("%s_%s.properties", config.BaseFilename, lang)
-		}
 	}
+    filename = filepath.Join(config.PropsDir, filename)
 
 	sortedProps := properties.NewProperties()
 	keys := props.Keys()

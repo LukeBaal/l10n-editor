@@ -59,7 +59,7 @@ function renderTable(langs, strings) {
             rowHTML += `<td class="value-cell">
 ${showTranslations ? `<label for="value-${key}-${lang}"/>${displayName}</label>` : ""}
 <input type="text" id="value-${key}-${lang}" value="${escapeHTML(value)}" title="${escapeHTML(value)}" ${editable ? "" : "disabled"}>
-<button class="save" onclick="editString('${key}', '${lang}')">Save</button>
+${editable ? `<button class="save" onclick="editString('${key}', '${lang}')">Save</button>` : ""}
 </td>`;
         });
 
@@ -138,7 +138,7 @@ function editString(key, lang) {
     fetch('/api/edit', {method: 'POST', body: formData})
         .then(response => {
             if (response.ok) {
-                alert(`'${key}' in '${lang}' saved!`);
+                alert(`'${key}' saved!`);
             } else {
                 alert('Error saving string.');
             }
@@ -153,7 +153,8 @@ function removeString(key) {
         fetch('/api/remove', {method: 'POST', body: formData})
             .then(response => {
                 if (response.ok) {
-                    fetchStrings();
+                    const filter = document.getElementById('search').value.toLowerCase();
+                    fetchStrings(filter);
                 } else {
                     alert('Error removing string.');
                 }
